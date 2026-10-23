@@ -1,0 +1,40 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+title VitaStore — TO-BE Cloud POS Architecture
+
+Person(cashier, "Кассир", "Сотрудник магазина")
+
+' Используем Container_Boundary для корректной группировки контейнеров
+Container_Boundary(store, "Магазин — Edge") {
+    Container(pos, "Cloud POS", "Web App / Tablet", "Тонкий клиент: интерфейс кассира")
+    Container(edge, "Local Edge Agent", "Локальное приложение", "Кэш товаров и цен, очередь операций, офлайн-режим")
+    Container(hal, "Hardware Abstraction Layer", "Локальный сервис", "Единый интерфейс работы с оборудованием")
+    Container_Ext(fiscal, "Фискальный регистратор", "ККТ", "Локальная фискальная печать")
+    Container_Ext(terminal, "Банковский терминал", "USB / LAN", "Терминалы разных банков и производителей")
+
+    Rel(cashier, pos, "Работает с кассой")
+    Rel(pos, edge, "Офлайн-операции и локальные данные")
+    Rel(pos, hal, "Команды устройствам")
+    Rel(hal, fiscal, "Через адаптер ККТ")
+    Rel(hal, terminal, "Через платёжные адаптеры")
+}
+
+Container_Boundary(cloud, "Cloud Backend") {
+    Container(api, "API Gateway", "HTTPS / REST", "Единая точка входа")
+    Container(backend, "POS Backend", "Облачный сервис", "Продажи и бизнес-логика")
+    ContainerDb(db, "Central DB", "Облачная СУБД", "Товары, цены, чеки")
+    Container(sync, "Sync Service", "Облачный сервис", "Синхронизация офлайн-операций")
+    Container(gateway, "Payment Gateway", "Облачный сервис", "Унификация платёжных операций")
+
+    Rel(api, backend, "Запросы POS")
+    Rel(backend, db, "Чтение и запись")
+    Rel(sync, db, "Сверка и сохранение операций")
+    Rel(backend, gateway, "Платёжные запросы")
+}
+
+Rel(pos, api, "Вызовы API", "HTTPS")
+Rel(edge, sync, "Синхронизация очереди", "HTTPS")
+Rel(gateway, hal, "Платёжные команды через Edge Agent", "Защищённый канал")
+
+@enduml

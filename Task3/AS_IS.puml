@@ -1,0 +1,46 @@
+@startuml
+!include <C4/C4_Container.puml>
+
+title VitaStore — AS-IS Container Diagram
+
+Person(cashier, "Кассир", "Сотрудник магазина")
+
+System_Boundary(store, "Магазин") {
+    Container(pos, "POS App", "Windows / C#", "Толстый клиент; бизнес-логика и драйверы оборудования")
+    ContainerDb(localdb, "Local DB", "MS SQL Express", "Локальные цены, справочники и чеки")
+    ' Заменяем Container_Ext на стандартный Container, так как Ext-версий для контейнеров в базовом C4 нет
+    Container(fiscal, "Фискальный регистратор", "ККТ", "Печать фискальных чеков через COM-порт")
+    Container(terminal, "Банковский терминал", "USB", "Терминал конкретного банка; протокол зависит от модели")
+}
+
+System_Boundary(hq, "Центральный офис") {
+    ContainerDb(sap, "SAP ERP", "Enterprise ERP", "Центральный учёт товаров и цен")
+    Container(integration, "Ручной процесс интеграции", "CSV/XLS + email + товаровед", "Ручное сопоставление номенклатуры")
+    Container(ftp, "FTP / файловый обмен", "FTP + XML", "Ночная рассылка прайс-листов в 02:00")
+}
+
+Rel(cashier, pos, "Работает с кассой")
+Rel(pos, localdb, "Читает цены, записывает чеки", "SQL / синхронно")
+Rel(pos, fiscal, "Управляет печатью", "COM-драйвер")
+Rel(pos, terminal, "Инициирует оплату", "USB-драйвер")
+
+Rel(localdb, integration, "Выгрузка номенклатуры", "CSV/XLS, email")
+Rel(integration, sap, "Загрузка сопоставленной номенклатуры")
+Rel(sap, ftp, "Формирует XML-пакет")
+Rel(ftp, localdb, "Передаёт обновлённые прайс-листы", "Ночью, 02:00")
+
+' Исправленный синтаксис многострочных заметок (добавлен end note)
+note right of pos
+  INC-8402:
+  при потере интернета касса
+  продолжает наличные продажи,
+  но онлайн-лояльность недоступна.
+end note
+
+note right of terminal
+  INC-8415:
+  несовместимость с ARCUS-2
+  задерживает открытие магазина.
+end note
+
+@enduml
